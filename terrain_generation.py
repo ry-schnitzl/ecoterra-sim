@@ -99,7 +99,7 @@ class TerrainGenerator:
 
     # Size 400: scale=0.25, lines=10, alt_lacun=3, ang_lacun=1
     # Size 1000: scale=0.1, lines=20, alt_lacun=5, ang_lacun=3
-    def continental(self, map, plate_map, plates, land_ocean_ratio, height, volc_tile, scale=0.25):
+    def continental(self, map, plate_map, plates, land_ocean_ratio, height, volc_tile, scale=0.25, loading_bar_provider=lambda x: None):
         land_plates = [True] * (len(plates) + 2)
         land = 1
         ocean = 1
@@ -116,7 +116,17 @@ class TerrainGenerator:
         smooth_range = 10
         lateral_scale = 0.5
 
+        update_every = 10000
+        batch = 0
+        completed = 0
+        total = self.width * self.height
+
         for x in range(self.width):
+            if batch > update_every:
+                batch %= update_every
+                loading_bar_provider(completed/total)
+            completed += self.height
+            batch += self.height
             for y in range(self.height):
                 plate = plate_map[x][y]
                 if plate == volc_tile:

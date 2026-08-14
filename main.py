@@ -1,7 +1,7 @@
-from simulation import Simulation
+from game import ImperialGame
 
 if __name__ == '__main__':
-    sim = Simulation(700, 700, 60, 60)
+    sim = ImperialGame(700, 700, 60, 60)
     sim.set_color_stages([[0, (15, 35, 120)],
                           [22, (18, 46, 184)],
                           [29,(12, 240, 217)],
@@ -11,7 +11,8 @@ if __name__ == '__main__':
                           [70, (220, 220, 220)],
                           [80, (255,255,255)],
                           [81, (255, 255, 0)],
-                          [99, (255, 0, 0)]])
+                          [99, (255, 0, 0)]],
+                         (25,40))
     sim.set_map_size(400, 400)
     sim.generate()
     sim.run()
