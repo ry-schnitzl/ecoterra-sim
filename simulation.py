@@ -36,7 +36,7 @@ class SimulationData:
 class GraphicData:
     def __init__(self):
         self.color = []
-        self.region_size = 100
+        self.region_size = 10
         self.region = []
         self.region_prepared = False
 
@@ -70,17 +70,19 @@ class Simulation:
 
     def generate(self):
         #self.map.generator.fractal(self.map.tile, self.map.range)
+        volc_tile = -1
         plate_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
-        self.map.generator.lines(plate_map, 10)
-        plates = self.map.generator.plates(plate_map)
+        self.map.generator.lines(plate_map, 10, volc_tile)
+        plates = self.map.generator.plates(plate_map, volc_tile, 1000)
 
         # p = [[i,0] for i in range(64)]
         # for plate in plates:
         #     p[plate[0]][1] += plate[1]
 
         #self.map.tile = plate_map
-        self.map.generator.continental(self.map.tile, plate_map, plates, 0.5, (0,80))
-        self.map.generator.devolcanize(self.map.tile, 1)
+        self.map.generator.devolcanize(plate_map, volc_tile, 1)
+        self.map.generator.continental(self.map.tile, plate_map, plates, 0.3, 80, volc_tile)
+
 
     def set_map_size(self, width, height, seed=None):
         self.map.dim = Point(width, height)
