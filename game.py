@@ -87,18 +87,37 @@ class ImperialGame:
         self.map.generator.lines(plate_map, 10, volc_tile)
         self.update_with_loading_bar(0.1)
 
+        self.map.generator.loading_bar = lambda completed: self.update_with_loading_bar(completed * 0.1 + 0.1)
         plates = self.map.generator.plates(plate_map, volc_tile, 1000)
-        self.update_with_loading_bar(0.2)
 
-        #self.map.tile = plate_map
-        self.map.generator.devolcanize(plate_map, volc_tile, 1)
+        # self.map.tile = plate_map
+        self.map.generator.devolcanize(plate_map, volc_tile, 0.95)
         self.update_with_loading_bar(0.25)
 
-        def load(completed):
-            self.update_with_loading_bar(completed*0.75 + 0.25)
-        self.map.generator.continental(self.map.tile, plate_map, plates, 0.3, 80, volc_tile, loading_bar_provider=load)
+        self.map.generator.loading_bar = lambda completed : self.update_with_loading_bar(completed*0.75 + 0.25)
+        land_plates = self.map.generator.continental(self.map.tile, plate_map, plates, 0.3, 80, volc_tile)
         self.map.is_generated = True
 
+    def generate_testing(self):
+        self.map.generator.loading_bar = lambda completed: self.update_with_loading_bar(completed)
+        #self.map.generator.testing(self.map.tile, (0, 80))
+
+        volc_tile = -1
+        self.graphics.loading_bar_fill = 0
+        self.update_with_loading_bar(0)
+
+        plate_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
+        self.map.generator.lines(plate_map, 10, volc_tile)
+        self.update_with_loading_bar(0.1)
+
+        plates = self.map.generator.plates(plate_map, volc_tile, 500)
+
+        #self.map.generator.devolcanize(plate_map, volc_tile, 1)
+        land_plates = self.map.generator.continental(self.map.tile, plate_map, plates, 0.3, 80, volc_tile)
+        self.map.generator.tectonics(self.map.tile, plate_map, land_plates)
+
+        #self.map.tile = plate_map
+        self.map.is_generated = True
 
     def set_map_size(self, width, height, seed=None):
         self.map.dim = Point(width, height)
@@ -151,9 +170,9 @@ class ImperialGame:
     def create_loading_bar_cache(self, color_range=(0,0)):
         cache = pygame.Surface((self.graphics.loading_bar_rect[2], self.graphics.loading_bar_rect[3]))
         cache.fill(self.graphics.color[0])
-        total_c = color_range[1] - color_range[0] + 2
+        total_c = color_range[1] - color_range[0] + 1
         for c in range(color_range[0] + 1, color_range[1]):
-            stage = (c - color_range[0]) / total_c
+            stage = (c - color_range[0] - 1) / total_c
             start_x = stage * cache.get_width()
             pygame.draw.polygon(cache, self.graphics.color[c], (
                 (start_x, cache.get_height()),

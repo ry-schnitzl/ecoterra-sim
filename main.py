@@ -1,3 +1,6 @@
+import math
+import random
+
 from game import ImperialGame
 
 if __name__ == '__main__':
@@ -11,8 +14,11 @@ if __name__ == '__main__':
                           [70, (220, 220, 220)],
                           [80, (255,255,255)],
                           [81, (255, 255, 0)],
-                          [99, (255, 0, 0)]],
+                          [90, (0, 255, 255)],
+                          [99, (255, 0, 0)],
+                          [100, (0, 0, 0)],
+                          [200, (255,255,255)]],
                          (25,40))
     sim.set_map_size(400, 400)
-    sim.generate()
+    sim.generate_testing()
     sim.run()
