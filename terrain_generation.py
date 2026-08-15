@@ -61,13 +61,13 @@ class TerrainGenerator:
         self.completed += self.height
         self.batch += self.height
 
-    def lines(self, map, count, line_value, scale=0.8):
+    def lines(self, plate_map, count, line_value, scale=0.8):
         for c in range(count):
             p = (random.randint(0,self.width-1),random.randint(0,self.height-1))
             length = 500
 
-            prev_x = snoise2(0, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[1] % 256) * self.width + p[0]
-            prev_y = snoise2(0, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[0] % 256) * self.height + p[1]
+            prev_x = snoise2(0, 0, 5, 0.3, 6, 1 / scale, 1 / scale, base=p[1] % 256) * self.width + p[0]
+            prev_y = snoise2(0, 0, 5, 0.3, 6, 1 / scale, 1 / scale, base=p[0] % 256) * self.height + p[1]
             for l in range(1,length + 1):
                 x = snoise2(l / length / scale, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[1] % 256) * self.width + \
                          p[0]
@@ -79,43 +79,43 @@ class TerrainGenerator:
                 for i in range(dl):
                     ix = i/dl*prev_x + (1-i/dl)*x
                     iy = i/dl*prev_y + (1-i/dl)*y
-                    map[int(self.nx(ix, 0)), int(self.ny(iy, 0))] = line_value
+                    plate_map[int(self.nx(ix, 0)), int(self.ny(iy, 0))] = line_value
                 prev_x = x
                 prev_y = y
 
 
 
-    def plates(self, map, edge_tile, min_size=0):
+    def plates(self, plate_map, edge_tile, min_size=0):
         def fill(f_x, f_y, f, c=0):
             affected = 0
             q = [(f_x, f_y)]
             while q:
                 qx, qy = q.pop()
                 affected += 1
-                map[qx][qy] = f
-                if map[self.nx(qx, 1), qy] == edge_tile:
-                    map[self.nx(qx, 1), qy] = f
-                if map[self.nx(qx, 1), qy] == c:
+                plate_map[qx][qy] = f
+                if plate_map[self.nx(qx, 1), qy] == edge_tile:
+                    plate_map[self.nx(qx, 1), qy] = f
+                if plate_map[self.nx(qx, 1), qy] == c:
                     q.append((self.nx(qx, 1), qy))
-                    map[self.nx(qx, 1), qy] = -2
+                    plate_map[self.nx(qx, 1), qy] = -2
 
-                if map[self.nx(qx, -1), qy] == edge_tile:
-                    map[self.nx(qx, -1), qy] = f
-                if map[self.nx(qx, -1), qy] == c:
+                if plate_map[self.nx(qx, -1), qy] == edge_tile:
+                    plate_map[self.nx(qx, -1), qy] = f
+                if plate_map[self.nx(qx, -1), qy] == c:
                     q.append((self.nx(qx, -1), qy))
-                    map[self.nx(qx, -1), qy] = -2
+                    plate_map[self.nx(qx, -1), qy] = -2
 
-                if map[qx, self.ny(qy, 1)] == edge_tile:
-                    map[qx, self.ny(qy, 1)] = f
-                if map[qx, self.ny(qy, 1)] == c:
+                if plate_map[qx, self.ny(qy, 1)] == edge_tile:
+                    plate_map[qx, self.ny(qy, 1)] = f
+                if plate_map[qx, self.ny(qy, 1)] == c:
                     q.append((qx, self.ny(qy, 1)))
-                    map[qx, self.ny(qy, 1)] = -2
+                    plate_map[qx, self.ny(qy, 1)] = -2
 
-                if map[qx, self.ny(qy, -1)] == edge_tile:
-                    map[qx, self.ny(qy, -1)] = f
-                if map[qx, self.ny(qy, -1)] == c:
+                if plate_map[qx, self.ny(qy, -1)] == edge_tile:
+                    plate_map[qx, self.ny(qy, -1)] = f
+                if plate_map[qx, self.ny(qy, -1)] == c:
                     q.append((qx, self.ny(qy, -1)))
-                    map[qx, self.ny(qy, -1)] = -2
+                    plate_map[qx, self.ny(qy, -1)] = -2
             return affected
 
 
@@ -125,7 +125,7 @@ class TerrainGenerator:
         for x in range(self.width):
             self.loading_bar_update()
             for y in range(self.height):
-                if map[x][y] != 0: continue
+                if plate_map[x][y] != 0: continue
                 aff = fill(x,y,p)
                 plates += [[p, aff, (x,y)]]
                 p += 1
@@ -151,10 +151,10 @@ class TerrainGenerator:
                     while n == plate[0] or n == edge_tile:
                         x = self.nx(x, dx)
                         y = self.ny(y, dy)
-                        n = map[x][y]
+                        n = plate_map[x][y]
 
-                    aff = fill(plate[2][0], plate[2][1], map[x][y], c=plate[0])
-                    plates[map[x][y] - 1][1] += aff
+                    aff = fill(plate[2][0], plate[2][1], plate_map[x][y], c=plate[0])
+                    plates[plate_map[x][y] - 1][1] += aff
 
         for i in reversed(removal):
             plates.pop(i)
@@ -170,8 +170,8 @@ class TerrainGenerator:
         for x in range(self.width):
             for y in range(self.height):
 
-                if map[x][y] > p: map[x][y] = last_safe
-                else: last_safe = map[x][y]
+                if plate_map[x][y] > p: plate_map[x][y] = last_safe
+                else: last_safe = plate_map[x][y]
 
         return plates
 
@@ -192,7 +192,7 @@ class TerrainGenerator:
 
     # Size 400: scale=0.25, lines=10, alt_lacun=3, ang_lacun=1
     # Size 1000: scale=0.1, lines=20, alt_lacun=5, ang_lacun=3
-    def continental(self, map, plate_map, land_plates, height, volc_tile, scale=0.25):
+    def continental(self, continental_map, plate_map, land_plates, height, volc_tile, scale=0.25):
 
         ocean_multiplier = 0.5
         smooth_range = 10
@@ -228,7 +228,7 @@ class TerrainGenerator:
                 alt = (clamp(snoise2(x / self.width, y / self.height, 5, 0.5, 3, 1, 1, base=(self.seed + 1) % 256)))
                 ang = (clamp(snoise2(x / self.width, y / self.height, 5, 0.8, 1, 1, 1, base=(self.seed + 2) % 256)))
 
-                map[x][y] += multiplier * int(((clamp(1.2*snoise2(
+                continental_map[x][y] += multiplier * int(((clamp(1.2 * snoise2(
                     x / self.width / scale + alt * math.cos(ang),
                     y / self.height / scale + alt * math.sin(ang),
                     5,
@@ -237,36 +237,7 @@ class TerrainGenerator:
                     1 / scale,
                     1 / scale,
                     base=self.seed % 256))
-                                  + 1) / 2 ) * (height - 1))
-
-    def devolcanize(self, map, volc_tile, perc=0.96):
-        for x in range(self.width):
-            for y in range(self.height):
-                if map[x][y] != volc_tile: continue
-                if random.random() < perc:
-                    h = 0
-                    used = 0
-                    if map[(x + 1) % self.width, y] != volc_tile:
-                        h += map[(x + 1) % self.width, y]
-                        used += 1
-
-                    if map[(x - 1 + self.width) % self.width, y] != volc_tile:
-                        h += map[(x - 1 + self.width) % self.width, y]
-                        used += 1
-
-                    if map[x, (y + 1) % self.height] != volc_tile:
-                        h += map[x, (y + 1) % self.height]
-                        used += 1
-
-                    if map[x, (y - 1 + self.height) % self.height] != volc_tile:
-                        h += map[x, (y - 1 + self.height) % self.height]
-                        used += 1
-                    if not used:
-                        h = volc_tile
-                    else:
-                        h = h // used
-
-                    map[x, y] = h
+                                                            + 1) / 2) * (height - 1))
 
     # Div o-o -> shallow
     # Div o-l -> shallow, volcanoes (64)
@@ -284,7 +255,7 @@ class TerrainGenerator:
         dy = math.sin(random.uniform(0, 2 * math.pi))
         return dx, dy
 
-    def tectonics(self, tect_map, plate_map):
+    def tectonics(self, tectonic_map, plate_map):
         check_range = 3
 
         self.loading_bar_reset()
@@ -313,7 +284,7 @@ class TerrainGenerator:
 
                     # Plates moving together
                     if ang < 0:
-                        tect_map[x][y] = -1
+                        tectonic_map[x][y] = -1
                     # Plates moving in the same direction
                     # elif ang > 0.5:
                     #     map[x][y] = 100 + next_plate_dist*5
@@ -324,7 +295,7 @@ class TerrainGenerator:
 
                     # Plates moving apart
                     if ang < 0:
-                        tect_map[x][y] = 1
+                        tectonic_map[x][y] = 1
 
                     # Plates moving in the same direction
                     # elif ang > 0.5:
@@ -332,13 +303,19 @@ class TerrainGenerator:
 
         for x in range(self.width):
             for y in range(self.height):
-                if (tect_map[x][y] == -1) and tect_map[self.nx(x, 1)][y] == -1 and tect_map[self.nx(x, -1)][y] == -1 and tect_map[x][self.ny(y, 1)] == -1 and tect_map[x][self.ny(y, -1)] == -1:
-                    tect_map[x][y] = -2
-                if (tect_map[x][y] == 1) and tect_map[self.nx(x, 1)][y] == 1 and tect_map[self.nx(x, -1)][y] == 1 and tect_map[x][self.ny(y, 1)] == 1 and tect_map[x][self.ny(y, -1)] == 1:
-                    tect_map[x][y] = 2
+                if (tectonic_map[x][y] == -1) and tectonic_map[self.nx(x, 1)][y] == -1 and tectonic_map[self.nx(x, -1)][y] == -1 and tectonic_map[x][self.ny(y, 1)] == -1 and tectonic_map[x][self.ny(y, -1)] == -1:
+                    tectonic_map[x][y] = -2
+                if (tectonic_map[x][y] == 1) and tectonic_map[self.nx(x, 1)][y] == 1 and tectonic_map[self.nx(x, -1)][y] == 1 and tectonic_map[x][self.ny(y, 1)] == 1 and tectonic_map[x][self.ny(y, -1)] == 1:
+                    tectonic_map[x][y] = 2
 
 
-    def identify_mnt_ranges(self, tect_map):
+    def apply_tectonic_effects(self, continental_map, tectonic_map, min_height, max_height):
+        mnts = self.identify_mnt_ranges(tectonic_map)
+        vlys = self.identify_vly_ranges(tectonic_map)
+        self.generate_all_mnt_ranges(continental_map, mnts, 80)
+        self.generate_all_vly_ranges(continental_map, vlys, 0)
+
+    def identify_mnt_ranges(self, tectonic_map):
         def get_closest_alt(target_x, target_y, input_x, input_y):
             w = self.width
             h = self.height
@@ -348,11 +325,11 @@ class TerrainGenerator:
 
         def get_mnt_chain(x, y):
             endpoint = [(x,y)]
-            tect_map[x][y] = -4
+            tectonic_map[x][y] = -4
             q = [(self.nx(x,1),y),(self.nx(x,-1),y),(x, self.ny(y,-1)),(x, self.ny(y,1))]
             while q:
                 qx, qy = q.pop(0)
-                if tect_map[qx][qy] != -1 and tect_map[qx][qy] != -2:
+                if tectonic_map[qx][qy] != -1 and tectonic_map[qx][qy] != -2:
                     continue
 
                 nx = self.nx(qx, 1)
@@ -368,10 +345,10 @@ class TerrainGenerator:
                 q.append((nx,nny))
                 q.append((nnx,nny))
 
-                if tect_map[qx][qy] == -1:
-                    tect_map[qx][qy] = -3
+                if tectonic_map[qx][qy] == -1:
+                    tectonic_map[qx][qy] = -3
                 else:
-                    tect_map[qx][qy] = -4
+                    tectonic_map[qx][qy] = -4
 
                     if len(endpoint) == 1:
                         endpoint.append((qx,qy))
@@ -392,13 +369,13 @@ class TerrainGenerator:
                             tx = int(self.nx(px * t , qx * (1-t)))
                             ty = int(self.ny(py * t , qy * (1-t)))
 
-                            if not(-4 <= tect_map[tx][ty] <= -1):
+                            if not(-4 <= tectonic_map[tx][ty] <= -1):
                                 endpoint.insert(0, (qx,qy))
                                 new_pt = True
                                 break
 
                         if new_pt: continue
-                        tect_map[endpoint[0][0]][endpoint[0][1]] = -3
+                        tectonic_map[endpoint[0][0]][endpoint[0][1]] = -3
                         endpoint[0] = (qx, qy)
                     else:
                         px, py = get_closest_alt(qx, qy, endpoint[-2][0], endpoint[-2][1])
@@ -410,21 +387,21 @@ class TerrainGenerator:
                             tx = int(self.nx(px * t, qx * (1 - t)))
                             ty = int(self.ny(py * t, qy * (1 - t)))
 
-                            if not (-4 <= tect_map[tx][ty] <= -1):
+                            if not (-4 <= tectonic_map[tx][ty] <= -1):
                                 endpoint.append((qx, qy))
                                 new_pt = True
                                 break
 
                         if new_pt: continue
 
-                        tect_map[endpoint[-1][0]][endpoint[-1][1]] = -3
+                        tectonic_map[endpoint[-1][0]][endpoint[-1][1]] = -3
                         endpoint[-1] = (qx, qy)
             return endpoint
 
         mnt_range = []
         for x in range(self.width):
             for y in range(self.height):
-                if tect_map[x][y] == -2:
+                if tectonic_map[x][y] == -2:
                     m = get_mnt_chain(x, y)
                     if len(m) < 3: continue
                     use = True
@@ -435,7 +412,7 @@ class TerrainGenerator:
 
         return mnt_range
 
-    def identify_vly_ranges(self, tect_map):
+    def identify_vly_ranges(self, tectonic_map):
         def get_closest_alt(target_x, target_y, input_x, input_y):
             w = self.width
             h = self.height
@@ -445,11 +422,11 @@ class TerrainGenerator:
 
         def get_vly_chain(x, y):
             endpoint = [(x,y)]
-            tect_map[x][y] = 4
+            tectonic_map[x][y] = 4
             q = [(self.nx(x,1),y),(self.nx(x,-1),y),(x, self.ny(y,-1)),(x, self.ny(y,1))]
             while q:
                 qx, qy = q.pop(0)
-                if tect_map[qx][qy] != 1 and tect_map[qx][qy] != 2:
+                if tectonic_map[qx][qy] != 1 and tectonic_map[qx][qy] != 2:
                     continue
 
                 nx = self.nx(qx, 1)
@@ -465,10 +442,10 @@ class TerrainGenerator:
                 q.append((nx,nny))
                 q.append((nnx,nny))
 
-                if tect_map[qx][qy] == 1:
-                    tect_map[qx][qy] = 3
+                if tectonic_map[qx][qy] == 1:
+                    tectonic_map[qx][qy] = 3
                 else:
-                    tect_map[qx][qy] = 4
+                    tectonic_map[qx][qy] = 4
 
                     if len(endpoint) == 1:
                         endpoint.append((qx,qy))
@@ -489,13 +466,13 @@ class TerrainGenerator:
                             tx = int(self.nx(px * t , qx * (1-t)))
                             ty = int(self.ny(py * t , qy * (1-t)))
 
-                            if not(1 <= tect_map[tx][ty] <= 4):
+                            if not(1 <= tectonic_map[tx][ty] <= 4):
                                 endpoint.insert(0, (qx,qy))
                                 new_pt = True
                                 break
 
                         if new_pt: continue
-                        tect_map[endpoint[0][0]][endpoint[0][1]] = 3
+                        tectonic_map[endpoint[0][0]][endpoint[0][1]] = 3
                         endpoint[0] = (qx, qy)
                     else:
                         px, py = get_closest_alt(qx, qy, endpoint[-2][0], endpoint[-2][1])
@@ -507,21 +484,21 @@ class TerrainGenerator:
                             tx = int(self.nx(px * t, qx * (1 - t)))
                             ty = int(self.ny(py * t, qy * (1 - t)))
 
-                            if not (1 <= tect_map[tx][ty] <= 4):
+                            if not (1 <= tectonic_map[tx][ty] <= 4):
                                 endpoint.append((qx, qy))
                                 new_pt = True
                                 break
 
                         if new_pt: continue
 
-                        tect_map[endpoint[-1][0]][endpoint[-1][1]] = 3
+                        tectonic_map[endpoint[-1][0]][endpoint[-1][1]] = 3
                         endpoint[-1] = (qx, qy)
             return endpoint
 
         vly_range = []
         for x in range(self.width):
             for y in range(self.height):
-                if tect_map[x][y] == 2:
+                if tectonic_map[x][y] == 2:
                     v = get_vly_chain(x, y)
                     if len(v) < 3: continue
                     use = True

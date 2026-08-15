@@ -78,53 +78,43 @@ class ImperialGame:
         self.running = False
 
     def generate(self):
-        #self.map.generator.fractal(self.map.tile, self.map.range)
-        volc_tile = -1
-        self.graphics.loading_bar_fill = 0
-        self.update_with_loading_bar(0)
+        self.map.generator.loading_bar = lambda completed: self.update_with_loading_bar(completed)
 
+        # Create the plate map first
+        volc_tile = -1
         plate_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
         self.map.generator.lines(plate_map, 10, volc_tile)
-        self.update_with_loading_bar(0.1)
+        plates = self.map.generator.plates(plate_map, volc_tile, 500)
+        land_plates = self.map.generator.choose_land_plates(plates, 0.3)
 
-        self.map.generator.loading_bar = lambda completed: self.update_with_loading_bar(completed * 0.1 + 0.1)
-        plates = self.map.generator.plates(plate_map, volc_tile, 1000)
+        # Generate the main continents
+        self.map.generator.continental(self.map.tile, plate_map, land_plates, 80, volc_tile)
 
-        # self.map.tile = plate_map
-        #self.map.generator.devolcanize(plate_map, volc_tile, 0.95)
-        self.update_with_loading_bar(0.25)
+        # Create the tectonic map, and add tectonic effects to the continental map
+        tectonic_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
+        self.map.generator.tectonics(tectonic_map, plate_map)
+        self.map.generator.apply_tectonic_effects(self.map.tile, tectonic_map, 0, 80)
 
-        self.map.generator.loading_bar = lambda completed : self.update_with_loading_bar(completed*0.75 + 0.25)
-        land_plates = self.map.generator.continental(self.map.tile, plate_map, plates, 0.3, 80, volc_tile)
         self.map.is_generated = True
 
     def generate_testing(self):
         self.map.generator.loading_bar = lambda completed: self.update_with_loading_bar(completed)
-        #self.map.generator.testing(self.map.tile, (0, 80))
 
+        # Create the plate map first
         volc_tile = -1
-        self.graphics.loading_bar_fill = 0
-
         plate_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
         self.map.generator.lines(plate_map, 10, volc_tile)
-
         plates = self.map.generator.plates(plate_map, volc_tile, 500)
-
         land_plates = self.map.generator.choose_land_plates(plates, 0.3)
 
+        # Generate the main continents
         self.map.generator.continental(self.map.tile, plate_map, land_plates, 80, volc_tile)
 
+        # Create the tectonic map, and add tectonic effects to the continental map
         tectonic_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
-
         self.map.generator.tectonics(tectonic_map, plate_map)
+        self.map.generator.apply_tectonic_effects(self.map.tile, tectonic_map, 0, 80)
 
-        mnts = self.map.generator.identify_mnt_ranges(tectonic_map)
-        vlys = self.map.generator.identify_vly_ranges(tectonic_map)
-
-        self.map.generator.generate_all_mnt_ranges(self.map.tile, mnts, 80)
-        self.map.generator.generate_all_vly_ranges(self.map.tile, vlys, 0)
-        #self.map.tile = tectonic_map
-        #self.map.generator.testing(self.map.tile, 80)
         self.map.is_generated = True
 
     def set_map_size(self, width, height, seed=None):
