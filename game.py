@@ -91,7 +91,7 @@ class ImperialGame:
         plates = self.map.generator.plates(plate_map, volc_tile, 1000)
 
         # self.map.tile = plate_map
-        self.map.generator.devolcanize(plate_map, volc_tile, 0.95)
+        #self.map.generator.devolcanize(plate_map, volc_tile, 0.95)
         self.update_with_loading_bar(0.25)
 
         self.map.generator.loading_bar = lambda completed : self.update_with_loading_bar(completed*0.75 + 0.25)
@@ -104,19 +104,27 @@ class ImperialGame:
 
         volc_tile = -1
         self.graphics.loading_bar_fill = 0
-        self.update_with_loading_bar(0)
 
         plate_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
         self.map.generator.lines(plate_map, 10, volc_tile)
-        self.update_with_loading_bar(0.1)
 
         plates = self.map.generator.plates(plate_map, volc_tile, 500)
 
-        #self.map.generator.devolcanize(plate_map, volc_tile, 1)
-        land_plates = self.map.generator.continental(self.map.tile, plate_map, plates, 0.3, 80, volc_tile)
-        self.map.generator.tectonics(self.map.tile, plate_map, land_plates)
+        land_plates = self.map.generator.choose_land_plates(plates, 0.3)
 
-        #self.map.tile = plate_map
+        self.map.generator.continental(self.map.tile, plate_map, land_plates, 80, volc_tile)
+
+        tectonic_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
+
+        self.map.generator.tectonics(tectonic_map, plate_map)
+
+        mnts = self.map.generator.identify_mnt_ranges(tectonic_map)
+        vlys = self.map.generator.identify_vly_ranges(tectonic_map)
+
+        self.map.generator.generate_all_mnt_ranges(self.map.tile, mnts, 80)
+        self.map.generator.generate_all_vly_ranges(self.map.tile, vlys, 0)
+        #self.map.tile = tectonic_map
+        #self.map.generator.testing(self.map.tile, 80)
         self.map.is_generated = True
 
     def set_map_size(self, width, height, seed=None):
@@ -127,6 +135,28 @@ class ImperialGame:
     def set_view(self, view):
         v = (view[0], view[1], (view[2] - view[0]) / self.screen.get_width(), (view[3] - view[1]) / self.screen.get_height())
         self.sim.metric = v
+
+    def use_color_scheme_terrain(self):
+        self.set_color_stages([[0, (15, 35, 120)],
+                          [22, (18, 46, 184)],
+                          [29,(12, 240, 217)],
+                          [30,(235, 232, 174)],
+                          [40,(62, 161, 55)],
+                          [55,(56, 47, 38)],
+                          [65, (220, 220, 220)],
+                          [80, (255,255,255)],
+                          [200, (82, 9, 68)],],
+                         (25,40))
+
+    def use_color_scheme_tectonic(self):
+        self.set_color_stages([[0, (33, 23, 4)],
+                              [1, (70, 48, 199)],
+                              [5, (48, 199, 61)],
+                              [6, (46, 33, 6)],
+                              [15,(214, 155, 6)],
+                              [16, (154, 199, 48)],
+                              [20, (181, 13, 13)]],
+                             (6, 15))
 
     # stage is an array. Each stage is an index with a color
     def set_color_stages(self, stage, loading_bar_range=None):
@@ -169,10 +199,10 @@ class ImperialGame:
 
     def create_loading_bar_cache(self, color_range=(0,0)):
         cache = pygame.Surface((self.graphics.loading_bar_rect[2], self.graphics.loading_bar_rect[3]))
-        cache.fill(self.graphics.color[0])
+        cache.fill(self.graphics.color[color_range[0]])
         total_c = color_range[1] - color_range[0] + 1
         for c in range(color_range[0] + 1, color_range[1]):
-            stage = (c - color_range[0] - 1) / total_c
+            stage = (c - color_range[0] - 0.5) / total_c
             start_x = stage * cache.get_width()
             pygame.draw.polygon(cache, self.graphics.color[c], (
                 (start_x, cache.get_height()),
