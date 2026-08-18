@@ -1,3 +1,4 @@
+import bisect
 import math
 import random
 
@@ -49,6 +50,18 @@ class TerrainGenerator:
     def ny(self, c, incr):
         return (c + incr + self.height) % self.height
 
+    def rx(self, a_map, pt, incr):
+        return a_map[self.nx(pt[0], incr)][pt[1]]
+    def ry(self, a_map, pt, incr):
+        return a_map[pt[0]][self.ny(pt[1], incr)]
+
+    def ix(self, a_map, pt, incr, val):
+        a_map[self.nx(pt[0], incr)][pt[1]] = val
+    def iy(self, a_map, pt, incr, val):
+        a_map[pt[0]][self.ny(pt[1], incr)] = val
+    def ipt(self, a_map, pt, incr, val):
+        a_map[self.nx(pt[0], incr[0])][self.ny(pt[1], incr[1])] = val
+
 
     def loading_bar_reset(self):
         self.batch = 0
@@ -64,14 +77,14 @@ class TerrainGenerator:
     def lines(self, plate_map, count, line_value, scale=0.8):
         for c in range(count):
             p = (random.randint(0,self.width-1),random.randint(0,self.height-1))
-            length = 500
+            length = 1000
 
-            prev_x = snoise2(0, 0, 5, 0.3, 6, 1 / scale, 1 / scale, base=p[1] % 256) * self.width + p[0]
-            prev_y = snoise2(0, 0, 5, 0.3, 6, 1 / scale, 1 / scale, base=p[0] % 256) * self.height + p[1]
+            prev_x = 2*snoise2(0, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[1] % 256) * self.width + p[0]
+            prev_y = 2*snoise2(0, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[0] % 256) * self.height + p[1]
             for l in range(1,length + 1):
-                x = snoise2(l / length / scale, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[1] % 256) * self.width + \
+                x = 2* snoise2(l / length / scale, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[1] % 256) * self.width + \
                          p[0]
-                y = snoise2(l / length / scale, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[0] % 256) * self.height + \
+                y = 2* snoise2(l / length / scale, 0, 5, 0.2, 6, 1 / scale, 1 / scale, base=p[0] % 256) * self.height + \
                          p[1]
                 dx = abs(x - prev_x)
                 dy = abs(y - prev_y)
@@ -170,9 +183,23 @@ class TerrainGenerator:
         for x in range(self.width):
             for y in range(self.height):
 
+                if plate_map[x][y] == edge_tile:
+                    options = []
+                    a = self.rx(plate_map, (x, y), 1)
+                    if a != edge_tile: options.append(a)
+                    a = self.rx(plate_map, (x, y), -1)
+                    if a != edge_tile: options.append(a)
+                    a = self.ry(plate_map, (x, y), 1)
+                    if a != edge_tile: options.append(a)
+                    a = self.ry(plate_map, (x, y), -1)
+                    if a != edge_tile: options.append(a)
+                    if options: plate_map[x][y] = random.choice(options)
+                    else: plate_map[x][y] = 1
+
                 if plate_map[x][y] > p: plate_map[x][y] = last_safe
                 else: last_safe = plate_map[x][y]
 
+        self.loading_bar(1)
         return plates
 
     def choose_land_plates(self, plates, land_ocean_ratio):
@@ -238,6 +265,7 @@ class TerrainGenerator:
                     1 / scale,
                     base=self.seed % 256))
                                                             + 1) / 2) * (height - 1))
+        self.loading_bar(1)
 
     # Div o-o -> shallow
     # Div o-l -> shallow, volcanoes (64)
@@ -307,6 +335,7 @@ class TerrainGenerator:
                     tectonic_map[x][y] = -2
                 if (tectonic_map[x][y] == 1) and tectonic_map[self.nx(x, 1)][y] == 1 and tectonic_map[self.nx(x, -1)][y] == 1 and tectonic_map[x][self.ny(y, 1)] == 1 and tectonic_map[x][self.ny(y, -1)] == 1:
                     tectonic_map[x][y] = 2
+        self.loading_bar(1)
 
 
     def apply_tectonic_effects(self, continental_map, tectonic_map, min_height, max_height):
@@ -517,11 +546,12 @@ class TerrainGenerator:
             self.loading_bar(n/total)
             n += 1
             for i in range(1,len(m)):
-                amplitude = int(clamp(random.normalvariate(15, 10), 5, 40))
+                amplitude = int(clamp(random.normalvariate(25, 10), 15, 50))
                 self.generate_mnt_range(map, m[i - 1], m[i], height, max_effect=amplitude,
-                                        max_offset=int(0.6 * amplitude), magnitude=int(0.5 * amplitude))
+                                        max_offset=int(0.6 * amplitude), magnitude=int(0.7 * amplitude))
+        self.loading_bar(1)
 
-    def generate_mnt_range(self, map, a, b, height, max_effect=20, max_offset=10, magnitude=20, sea_erosion=0.75, scale=0.05):
+    def generate_mnt_range(self, map, a, b, height, max_effect=20, max_offset=10, magnitude=20, sea_erosion=0.8, scale=0.05):
 
         def get_closest_alt(target_x, target_y, input_x, input_y):
             w = self.width
@@ -576,8 +606,9 @@ class TerrainGenerator:
             self.loading_bar(n/total)
             n += 1
             for i in range(1,len(v)):
-                amplitude = int(clamp(random.normalvariate(20, 10), 5, 40))
+                amplitude = int(clamp(random.normalvariate(25, 10), 15, 50))
                 self.generate_vly_range(map, v[i-1], v[i], depth, max_effect=amplitude, max_offset=int(0.7*amplitude), magnitude=int(0.5*amplitude))
+        self.loading_bar(1)
 
     def generate_vly_range(self, map, a, b, depth, max_effect=30, max_offset=20, magnitude=15, scale=0.05):
 
@@ -625,9 +656,214 @@ class TerrainGenerator:
                                 base=(self.seed + 2) % 256))+1) / 2, depth)
 
 
+    def river(self, continental_map, river_map, wet_river_chance = 0.25, trials=4, granularity=0.1):
+        def get_closest_alt(target_x, target_y, input_x, input_y):
+            w = self.width
+            h = self.height
+            alt_x = input_x - w * (input_x - target_x > w/2) + w * (target_x - input_x > w/2)
+            alt_y = input_y - h * (input_y - target_y > h/2) + h * (target_y - input_y > h/2)
+            return alt_x, alt_y
 
-    # filamentous
-    def fractal(self, map, rnge, scale=0.1):
+        self.loading_bar(0)
+
+        peaks = []
+        for sector_x in range(int(self.width * granularity)):
+            self.loading_bar(sector_x / self.width * granularity)
+            for sector_y in range(int(self.height * granularity)):
+                x = int(sector_x / granularity)
+                y = int(sector_y / granularity)
+                river_map = np.zeros([self.width, self.height], dtype=int)
+                if continental_map[x][y] < 40: continue
+                p = (x,y)
+                highest = (x, y, continental_map[x][y])
+                q = [(x, y, highest[2])]
+                river_map[x][y] = -800
+                while q:
+                    qx, qy, qh = q.pop(0)
+                    if river_map[qx][qy] >= -1: continue
+                    for dx in [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            nx = self.nx(qx, dx)
+                            ny = self.ny(qy, dy)
+                            if river_map[nx][ny] == 0 and continental_map[nx][ny] >= qh:
+                                bisect.insort(q, (nx, ny, continental_map[nx][ny]), key=lambda p: -p[2])
+                                river_map[nx][ny] = river_map[qx][qy] + 10 * (continental_map[nx][ny] != qh)
+                                if continental_map[nx][ny] > highest[2]:
+                                    highest = (nx, ny, continental_map[nx][ny])
+
+                if highest not in peaks: peaks.append(highest)
+
+        # for peak in peaks:
+        #     continental_map[peak[0]][peak[1]] = -500
+
+        self.loading_bar(0.5)
+
+        river_paths = []
+        peaks_processed = 0
+        total_peaks = len(peaks)
+        for peak in peaks:
+            self.loading_bar(0.5 * (1 + peaks_processed / total_peaks))
+            peaks_processed += 1
+
+            x, y, h = peak
+            for trial in range(random.randint(0, trials)):
+                wet_river = wet_river_chance < random.random()
+                river_map = np.zeros([self.width, self.height], dtype=int)
+                r = random.uniform(2, 4)
+                theta = random.uniform(0, 2 * math.pi)
+                x = self.nx(x, int(r * math.cos(theta)))
+                y = self.ny(y, int(r * math.sin(theta)))
+                if continental_map[x][y] % 100 < 35: continue
+
+                source = (x, y)
+                mouth_canidates = []
+                join_canidates = []
+
+                q = [(x, y, continental_map[x][y] % 100)]
+                river_map[x][y] = -500
+                while q:
+                    qx, qy, qh = q.pop(0)
+                    if river_map[qx][qy] >= -1: continue
+                    for dx in [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            nx = self.nx(qx, dx)
+                            ny = self.ny(qy, dy)
+                            if river_map[nx][ny] == 0 and continental_map[nx][ny] > 100:
+                                river_map[nx][ny] = river_map[qx][qy] + 1
+                                nnx, nny = get_closest_alt(x, y, nx, ny)
+                                join_canidates.append((nx, ny, (x - nnx)**2 + (y - nny)**2))
+                            elif river_map[nx][ny] == 0 and 20 < continental_map[nx][ny] % 100 <= qh:
+                                bisect.insort(q, (nx, ny, continental_map[nx][ny] % 100), key=lambda p: -p[2])
+                                river_map[nx][ny] = river_map[qx][qy] + 2
+                                if continental_map[nx][ny] % 100 == continental_map[qx][qy] % 100: river_map[nx][ny] = river_map[qx][qy] + 1
+                                if continental_map[nx][ny] % 100 < 25: mouth_canidates.append((nx, ny))
+                if len(mouth_canidates) < 1: continue
+
+                joined_river = False
+                if len(join_canidates) < 1:
+                    sx, sy = random.choice(mouth_canidates)
+                else:
+                    join_canidates.sort(key=lambda p: p[2])
+                    sx, sy, sd = join_canidates[0]
+                    joined_river = True
+                px, py = sx, sy
+                river_path = [(sx, sy)]
+                while river_map[px][py] > -500:
+                    h = river_map[px][py]
+                    next_options = []
+                    for nx in [self.nx(px,-1), px, self.nx(px,1)]:
+                        for ny in [self.ny(py,-1), py, self.ny(py,1)]:
+                            if river_map[nx][ny] < h:
+                                next_options.append((nx, ny))
+                    if len(next_options) <= 0: break
+                    px, py = random.choice(next_options)
+                    river_path.append((px, py))
+
+                # Post processing for the chosen path
+                river_path.append(source)
+                n = 1
+                while n < len(river_path) - 2:
+                    x, y = river_path[-n]
+                    nx, ny = river_path[-n - 1]
+                    nx, ny = get_closest_alt(x, y, nx, ny)
+                    nnx, nny = river_path[-n - 2]
+                    nnx, nny = get_closest_alt(x, y, nnx, nny)
+
+                    if (x - nx) ** 2 + (y - ny) ** 2 < 81:
+                        river_path.pop(-n - 1)
+                    elif (x - nnx) ** 2 + (y - nny) ** 2 < 81:
+                        river_path.pop(-n - 2)
+                    else: n += 1
+
+                while len(river_path) > 2 and continental_map[river_path[1][0]][river_path[1][1]] % 100 < 28:
+                    river_path.pop(0)
+
+                n = 1
+                while n < len(river_path):
+                    x, y = river_path[n]
+                    nx, ny = river_path[n - 1]
+                    nx, ny = get_closest_alt(x, y, nx, ny)
+
+                    dx = (nx - x)/2
+                    dy = (ny - y)/2
+                    perp_dx = -dy
+                    perp_dy = dx
+
+                    ang = random.uniform(-math.pi/4, math.pi/4) + random.uniform(-math.pi/4, math.pi/4)
+
+                    dx = dx * math.cos(ang) + perp_dx * math.sin(ang)
+                    dy = dy * math.cos(ang) + perp_dy * math.sin(ang)
+
+                    bez = (int(self.nx(x, dx)), int(self.ny(y, dy)))
+                    opp_bez = (int(self.nx(x, -dx)), int(self.ny(y, -dy)))
+
+                    river_path.insert(n + 1, opp_bez)
+                    river_path.insert(n, bez)
+                    n += 3
+                river_path.insert(0, (river_path[0][0], river_path[0][1]))
+
+                river_paths.append(river_path)
+
+                i = joined_river
+                while i < len(river_path) - 3:
+                    p0_x, p0_y = river_path[i]
+                    if continental_map[p0_x][p0_y] % 100 < 25: break
+                    p1_x, p1_y = river_path[i + 1]
+                    p1_x, p1_y = get_closest_alt(p0_x, p0_y, p1_x, p1_y)
+                    p2_x, p2_y = river_path[i + 2]
+                    p2_x, p2_y = get_closest_alt(p0_x, p0_y, p2_x, p2_y)
+                    p3_x, p3_y = river_path[i + 3]
+                    p3_x, p3_y = get_closest_alt(p0_x, p0_y, p3_x, p3_y)
+
+                    t = 0
+                    last = None
+                    while t <= 1:
+                        bx = int(self.nx(p0_x * (1 - t) * (1 - t) * (1 - t),
+                                         3 * p1_x * t * (1 - t) * (1 - t) + 3 * p2_x * t * t * (
+                                                     1 - t) + p3_x * t * t * t))
+                        by = int(self.ny(p0_y * (1 - t) * (1 - t) * (1 - t),
+                                         3 * p1_y * t * (1 - t) * (1 - t) + 3 * p2_y * t * t * (
+                                                     1 - t) + p3_y * t * t * t))
+                        if last == (bx, by):
+                            t += 0.05
+                            continue
+                        last = (bx, by)
+
+
+
+                        for nx in [self.nx(bx, -1), bx, self.nx(bx, 1)]:
+                            for ny in [self.ny(by, -1), by, self.ny(by, 1)]:
+                                if continental_map[nx][ny] >= 30 and continental_map[bx][by] < 50: continental_map[nx][ny] -= random.randint(1, 2)
+                                # v = min(max(continental_map[nx][ny] - 27, 0) / 50, 1)
+                                # continental_map[nx][ny] -= random.random() < (v * (1 - v)) ** 0.33
+                        if wet_river and 28 < continental_map[bx][by] < 100: continental_map[bx][by] += 100
+                        if continental_map[bx][by] >= 29: continental_map[bx][by] -= random.randint(1, 2)
+
+                        t += 0.05
+                    i += 3
+
+            # v = 100
+            # m = (0, 0)
+            # for x in range(self.width):
+            #     for y in range(self.height):
+            #         if river_map[x][y] != 0:
+            #             if continental_map[x][y] < v:
+            #                 m = (x, y)
+            #                 v = continental_map[x][y]
+            #             continental_map[x][y] = river_map[x][y]
+
+            # continental_map[m[0]][m[1]] = 101
+
+    def outline(self, a_map, value):
+        for x in range(self.width):
+            a_map[x][0] = value
+
+        for y in range(self.height):
+            a_map[0][y] = value
+
+
+
+    def filamentous(self, continental_map, rnge, scale=0.1):
         minimum = rnge[0]
         maximum = rnge[1]
         delta = maximum - minimum
@@ -638,7 +874,7 @@ class TerrainGenerator:
             for y in range(self.height):
                 alt = (clamp(snoise2(x/self.width, y/self.height, 5, 0.5, 2.5, 1, 1, base=(self.seed+1)%256)))
                 ang = (clamp(snoise2(x/self.width, y/self.height, 5, 0.5, 2, 1, 1, base=(self.seed+2)%256)))
-                map[x][y] += int((clamp(-0.7 + 3*snoise2(
+                continental_map[x][y] += int((clamp(-0.7 + 3 * snoise2(
                     x/self.width/scale + alt*math.cos(ang),
                     y/self.height/scale + alt*math.sin(ang),
                     5,
@@ -647,4 +883,4 @@ class TerrainGenerator:
                     1/scale,
                     1/scale,
                     base=self.seed%256))
-                    + 1) / 2 * delta + minimum)
+                                              + 1) / 2 * delta + minimum)

@@ -115,6 +115,13 @@ class ImperialGame:
         self.map.generator.tectonics(tectonic_map, plate_map)
         self.map.generator.apply_tectonic_effects(self.map.tile, tectonic_map, 0, 80)
 
+        #self.map.generator.outline(self.map.tile, 201)
+        # Todo: River Generation
+        river_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
+        self.map.generator.river(self.map.tile, river_map)
+
+        # Todo: Biome Generation
+
         self.map.is_generated = True
 
     def set_map_size(self, width, height, seed=None):
@@ -128,14 +135,28 @@ class ImperialGame:
 
     def use_color_scheme_terrain(self):
         self.set_color_stages([[0, (15, 35, 120)],
-                          [22, (18, 46, 184)],
-                          [29,(12, 240, 217)],
-                          [30,(235, 232, 174)],
-                          [40,(62, 161, 55)],
-                          [55,(56, 47, 38)],
-                          [65, (220, 220, 220)],
-                          [80, (255,255,255)],
-                          [200, (82, 9, 68)],],
+                            [22, (18, 46, 184)],
+                            [29,(12, 240, 217)],
+                            [30,(235, 232, 174)],
+                            [40,(62, 161, 55)],
+                            [55,(56, 47, 38)],
+                            [65, (220, 220, 220)],
+                            [80, (255,255,255)],
+                            [99,(148, 161, 235)],
+                            [100, (18, 46, 184)],
+                            [130, (67, 244, 202)],
+                            [140, (92, 159, 167)],
+                            [155, (55, 70, 86)],
+                            [165, (119, 119, 180)],
+                            [180, (186, 221, 219)],
+                            [201, (0, 0, 0)],
+                            [501, (225, 235, 50)],
+                            [502, (179, 87, 189)],
+                            [600, (20, 105, 79)],
+                            [700, (173, 83, 3)],
+                            [800, (101, 40, 200)],
+                            [900, (189, 34, 142)],
+                            [1000, (82, 9, 68)],],
                          (25,40))
 
     def use_color_scheme_tectonic(self):
@@ -171,7 +192,7 @@ class ImperialGame:
         self.draw_regions()
         if not self.map.is_generated: self.screen.fill(SKY_BLUE)
 
-        #self.draw_mouse_pos()
+        self.draw_mouse_pos()
 
     def create_region_cache(self):
         for region_x in range(math.ceil(self.map.dim.x / self.graphics.region_size)):
