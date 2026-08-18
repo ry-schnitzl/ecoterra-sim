@@ -5,6 +5,18 @@ import random
 import numpy as np
 from noise import snoise2, snoise3
 
+n_basal = 0
+n_shallow = 20
+n_tides = 28
+n_beach = 32
+n_vegetation = 36
+n_hills = 40
+n_mountains = 56
+n_rockies = 72
+n_snowy = 96
+n_biome_rep = 64
+
+
 def clamp(value, low=-1, high=1):
     return max(low, min(high, value))
 
@@ -30,6 +42,7 @@ def point_segment_distance(px, py, x1, y1, x2, y2):
     return math.hypot(px - closest_x, py - closest_y)
 
 class TerrainGenerator:
+
     def __init__(self, width, height, seed=None, loading_bar_provider=lambda x: None):
         self.width = width
         self.height = height
@@ -657,6 +670,13 @@ class TerrainGenerator:
 
 
     def river(self, continental_map, river_map, wet_river_chance = 0.25, trials=4, granularity=0.1):
+        max_search_depth = -767
+        river_bezier_spread = 9**2
+
+        def height(tile):
+            return (tile - n_beach) % n_biome_rep
+
+
         def get_closest_alt(target_x, target_y, input_x, input_y):
             w = self.width
             h = self.height
@@ -673,11 +693,11 @@ class TerrainGenerator:
                 x = int(sector_x / granularity)
                 y = int(sector_y / granularity)
                 river_map = np.zeros([self.width, self.height], dtype=int)
-                if continental_map[x][y] < 40: continue
+                if continental_map[x][y] < n_vegetation: continue
                 p = (x,y)
                 highest = (x, y, continental_map[x][y])
                 q = [(x, y, highest[2])]
-                river_map[x][y] = -800
+                river_map[x][y] = max_search_depth
                 while q:
                     qx, qy, qh = q.pop(0)
                     if river_map[qx][qy] >= -1: continue
@@ -692,9 +712,6 @@ class TerrainGenerator:
                                     highest = (nx, ny, continental_map[nx][ny])
 
                 if highest not in peaks: peaks.append(highest)
-
-        # for peak in peaks:
-        #     continental_map[peak[0]][peak[1]] = -500
 
         self.loading_bar(0.5)
 
@@ -713,14 +730,14 @@ class TerrainGenerator:
                 theta = random.uniform(0, 2 * math.pi)
                 x = self.nx(x, int(r * math.cos(theta)))
                 y = self.ny(y, int(r * math.sin(theta)))
-                if continental_map[x][y] % 100 < 35: continue
+                if continental_map[x][y] < n_hills: continue
 
                 source = (x, y)
                 mouth_canidates = []
                 join_canidates = []
 
-                q = [(x, y, continental_map[x][y] % 100)]
-                river_map[x][y] = -500
+                q = [(x, y, continental_map[x][y])]
+                river_map[x][y] = max_search_depth
                 while q:
                     qx, qy, qh = q.pop(0)
                     if river_map[qx][qy] >= -1: continue
@@ -728,15 +745,15 @@ class TerrainGenerator:
                         for dy in [-1, 0, 1]:
                             nx = self.nx(qx, dx)
                             ny = self.ny(qy, dy)
-                            if river_map[nx][ny] == 0 and continental_map[nx][ny] > 100:
+                            if river_map[nx][ny] == 0 and continental_map[nx][ny] > n_beach + n_biome_rep:
                                 river_map[nx][ny] = river_map[qx][qy] + 1
                                 nnx, nny = get_closest_alt(x, y, nx, ny)
                                 join_canidates.append((nx, ny, (x - nnx)**2 + (y - nny)**2))
-                            elif river_map[nx][ny] == 0 and 20 < continental_map[nx][ny] % 100 <= qh:
-                                bisect.insort(q, (nx, ny, continental_map[nx][ny] % 100), key=lambda p: -p[2])
+                            elif river_map[nx][ny] == 0 and n_tides < continental_map[nx][ny] <= qh:
+                                bisect.insort(q, (nx, ny, continental_map[nx][ny]), key=lambda p: -p[2])
                                 river_map[nx][ny] = river_map[qx][qy] + 2
-                                if continental_map[nx][ny] % 100 == continental_map[qx][qy] % 100: river_map[nx][ny] = river_map[qx][qy] + 1
-                                if continental_map[nx][ny] % 100 < 25: mouth_canidates.append((nx, ny))
+                                if height(continental_map[nx][ny]) == continental_map[qx][qy]: river_map[nx][ny] = river_map[qx][qy] + 1
+                                if continental_map[nx][ny] < n_beach: mouth_canidates.append((nx, ny))
                 if len(mouth_canidates) < 1: continue
 
                 joined_river = False
@@ -748,7 +765,7 @@ class TerrainGenerator:
                     joined_river = True
                 px, py = sx, sy
                 river_path = [(sx, sy)]
-                while river_map[px][py] > -500:
+                while river_map[px][py] > max_search_depth:
                     h = river_map[px][py]
                     next_options = []
                     for nx in [self.nx(px,-1), px, self.nx(px,1)]:
@@ -769,13 +786,13 @@ class TerrainGenerator:
                     nnx, nny = river_path[-n - 2]
                     nnx, nny = get_closest_alt(x, y, nnx, nny)
 
-                    if (x - nx) ** 2 + (y - ny) ** 2 < 81:
+                    if (x - nx) ** 2 + (y - ny) ** 2 < river_bezier_spread:
                         river_path.pop(-n - 1)
-                    elif (x - nnx) ** 2 + (y - nny) ** 2 < 81:
+                    elif (x - nnx) ** 2 + (y - nny) ** 2 < river_bezier_spread:
                         river_path.pop(-n - 2)
                     else: n += 1
 
-                while len(river_path) > 2 and continental_map[river_path[1][0]][river_path[1][1]] % 100 < 28:
+                while len(river_path) > 2 and continental_map[river_path[1][0]][river_path[1][1]] < n_tides:
                     river_path.pop(0)
 
                 n = 1
@@ -807,7 +824,7 @@ class TerrainGenerator:
                 i = joined_river
                 while i < len(river_path) - 3:
                     p0_x, p0_y = river_path[i]
-                    if continental_map[p0_x][p0_y] % 100 < 25: break
+                    #if height(continental_map[p0_x][p0_y]) < n_beach - 1: break
                     p1_x, p1_y = river_path[i + 1]
                     p1_x, p1_y = get_closest_alt(p0_x, p0_y, p1_x, p1_y)
                     p2_x, p2_y = river_path[i + 2]
@@ -833,26 +850,17 @@ class TerrainGenerator:
 
                         for nx in [self.nx(bx, -1), bx, self.nx(bx, 1)]:
                             for ny in [self.ny(by, -1), by, self.ny(by, 1)]:
-                                if continental_map[nx][ny] >= 30 and continental_map[bx][by] < 50: continental_map[nx][ny] -= random.randint(1, 2)
-                                # v = min(max(continental_map[nx][ny] - 27, 0) / 50, 1)
-                                # continental_map[nx][ny] -= random.random() < (v * (1 - v)) ** 0.33
-                        if wet_river and 28 < continental_map[bx][by] < 100: continental_map[bx][by] += 100
-                        if continental_map[bx][by] >= 29: continental_map[bx][by] -= random.randint(1, 2)
+                                if n_beach - 2 <= continental_map[nx][ny] < n_beach + n_biome_rep and continental_map[bx][by] < n_mountains:
+                                    continental_map[nx][ny] = max(continental_map[nx][ny] - random.randint(0, 2), n_beach - 2)
+
+                        if continental_map[bx][by] > n_beach: continental_map[bx][by] -= random.randint(1, 2)
+                        if wet_river and n_beach < continental_map[bx][by] < n_beach + n_biome_rep:
+                            continental_map[bx][by] = max(continental_map[bx][by] + n_biome_rep, n_beach + n_biome_rep)
+
+                        if 80 < continental_map[bx][by] < n_beach + n_biome_rep: print("hey")
 
                         t += 0.05
                     i += 3
-
-            # v = 100
-            # m = (0, 0)
-            # for x in range(self.width):
-            #     for y in range(self.height):
-            #         if river_map[x][y] != 0:
-            #             if continental_map[x][y] < v:
-            #                 m = (x, y)
-            #                 v = continental_map[x][y]
-            #             continental_map[x][y] = river_map[x][y]
-
-            # continental_map[m[0]][m[1]] = 101
 
     def outline(self, a_map, value):
         for x in range(self.width):

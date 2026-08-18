@@ -105,15 +105,15 @@ class ImperialGame:
         plate_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
         self.map.generator.lines(plate_map, 10, volc_tile)
         plates = self.map.generator.plates(plate_map, volc_tile, 500)
-        land_plates = self.map.generator.choose_land_plates(plates, 0.3)
+        land_plates = self.map.generator.choose_land_plates(plates, 0.25)
 
         # Generate the main continents
-        self.map.generator.continental(self.map.tile, plate_map, land_plates, 80, volc_tile)
+        self.map.generator.continental(self.map.tile, plate_map, land_plates, 96, volc_tile)
 
         # Create the tectonic map, and add tectonic effects to the continental map
         tectonic_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
         self.map.generator.tectonics(tectonic_map, plate_map)
-        self.map.generator.apply_tectonic_effects(self.map.tile, tectonic_map, 0, 80)
+        self.map.generator.apply_tectonic_effects(self.map.tile, tectonic_map, 0, 96)
 
         #self.map.generator.outline(self.map.tile, 201)
         # Todo: River Generation
@@ -134,29 +134,59 @@ class ImperialGame:
         self.sim.metric = v
 
     def use_color_scheme_terrain(self):
-        self.set_color_stages([[0, (15, 35, 120)],
-                            [22, (18, 46, 184)],
+        self.set_color_stages([[0, (15, 35, 120)],    # Basal Ocean
+                            [22, (18, 46, 184)],            # Shallow Ocean
                             [29,(12, 240, 217)],
-                            [30,(235, 232, 174)],
-                            [40,(62, 161, 55)],
-                            [55,(56, 47, 38)],
-                            [65, (220, 220, 220)],
-                            [80, (255,255,255)],
-                            [99,(148, 161, 235)],
-                            [100, (18, 46, 184)],
+                            [30,(235, 232, 174)],           # Beach
+                            [40,(62, 161, 55)],             # Vegetation
+                            [55,(56, 47, 38)],              # Low Mountains
+                            [65, (220, 220, 220)],          # Rockies
+                            [80, (255,255,255)],            # Snowy
+                            [99,(148, 161, 235)],           # Undefined; Currently blue snowy
+                            [100, (18, 46, 184)],           # River Variants
                             [130, (67, 244, 202)],
                             [140, (92, 159, 167)],
                             [155, (55, 70, 86)],
                             [165, (119, 119, 180)],
                             [180, (186, 221, 219)],
-                            [201, (0, 0, 0)],
-                            [501, (225, 235, 50)],
-                            [502, (179, 87, 189)],
-                            [600, (20, 105, 79)],
-                            [700, (173, 83, 3)],
-                            [800, (101, 40, 200)],
-                            [900, (189, 34, 142)],
-                            [1000, (82, 9, 68)],],
+                            [201, (0, 0, 0)],               # Testing Regions
+                            [501, (255, 255, 255)],
+                            [502, (242, 56, 10)],
+                            [600, (97, 145, 105)],
+                            [700, (88, 22, 219)],
+                            [800, (148, 115, 37)],
+                            [900, (77, 240, 188)],
+                            [1000, (138, 12, 136)],],
+                         (25,40))
+
+    def use_color_scheme_biomes(self):
+        self.set_color_stages([
+                            [0, (15, 35, 120)],             # Basal Ocean
+                            [20, (18, 46, 184)],            # Shallow Ocean
+                            [31,(12, 240, 217)],
+                            [32,(235, 232, 174)],           # Beach  - - - Generic
+                            [36,(62, 161, 55)],             # Vegetation
+                            [56,(56, 47, 38)],              # Mountains
+                            [72, (220, 220, 220)],          # Rockies
+                            [95, (255,255,255)],            # Snowy
+                            [96, (67, 244, 202)],          # River Variants (Starts at beach and works upward every 50)
+                            [100, (92, 159, 167)],
+                            [120, (55, 70, 86)],
+                            [136, (119, 119, 180)],
+                            [159, (186, 221, 219)],
+                            [224, (235, 232, 174)],  # Beach --- Tundra
+                            [288, (235, 232, 174)],  # Beach --- Tiaga
+                            [352, (235, 232, 174)],  # Beach --- Montane Forest
+                            [416, (235, 232, 174)],  # Beach --- Arid Desert
+                            [480, (235, 232, 174)],  # Beach --- Semiarid Desert
+                            [544, (235, 232, 174)],  # Beach --- Mediterranean
+                            [608, (235, 232, 174)],  # Beach --- Thorn forest
+                            [672, (235, 232, 174)],  # Beach --- Temperate steppe
+                            [736, (235, 232, 174)],  # Beach --- Broadleaf Forest
+                            [800, (235, 232, 174)],  # Beach ---  Savannah
+                            [864, (235, 232, 174)],  # Beach --- Monsoon Forest
+                            [928, (235, 232, 174)],  # Beach --- Tropical Forest
+                            ],
                          (25,40))
 
     def use_color_scheme_tectonic(self):
