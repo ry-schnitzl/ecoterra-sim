@@ -10,13 +10,13 @@ import math
 import random
 
 from pygame import Surface
+import cfg
+from cfg import is_different_biome, get_height
+from cfg import get_biome
+from cfg import get_biome
 
 from terrain_generation import TerrainGenerator
 from terrain_generation import clamp as clamp
-
-SKY_BLUE = (189, 239, 255)
-WHITE = (255, 255, 255)
-LIGHT_GRAY = (204, 208, 219)
 
 class Point:
     def __init__(self, x, y):
@@ -34,7 +34,7 @@ class SimulationData:
 
 class GraphicData:
     def __init__(self):
-        self.color = [WHITE]
+        self.color = [cfg.WHITE]
         self.region_size = 10
         self.region = []
         self.region_prepared = False
@@ -63,6 +63,33 @@ class ModeData:
         self.drag_value = 0
 
 class ImperialGame:
+    def ix(self, x):
+        return int(x + self.map.dim.x) % self.map.dim.x
+    def iy(self, y):
+        return int(y + self.map.dim.y) % self.map.dim.y
+    def nx(self, x, incr):
+        return (x + incr + self.map.dim.x) % self.map.dim.x
+    def ny(self, y, incr):
+        return (y + incr + self.map.dim.y) % self.map.dim.y
+
+    def r(self, pt):
+        return self.map.tile[self.ix(pt[0])][self.iy(pt[1])]
+    def rn(self, pt, incr=(0,0)):
+        return self.map.tile[int(self.nx(pt[0], incr[0]))][int(self.ny(pt[1], incr[1]))]
+    def rx(self, pt, incr):
+        return self.map.tile[self.nx(pt[0], incr)][pt[1]]
+    def ry(self, pt, incr):
+        return self.map.tile[pt[0]][self.ny(pt[1], incr)]
+
+    def set(self, pt, val):
+        self.map.tile[self.ix(pt[0])][self.iy(pt[1])] = val
+    def setn(self, pt, incr, val):
+        self.map.tile[int(self.nx(pt[0], incr[0]))][int(self.ny(pt[1], incr[1]))] = val
+    def setx(self, pt, incr, val):
+        self.map.tile[self.nx(pt[0], incr)][pt[1]] = val
+    def sety(self, pt, incr, val):
+        self.map.tile[pt[0]][self.ny(pt[1], incr)] = val
+
     def __init__(self, width, height, fps, ups):
         self.mode = ModeData(ups)
         self.map = MapData()
@@ -72,7 +99,7 @@ class ImperialGame:
 
         pygame.init()
         self.screen = pygame.display.set_mode((width, height))
-        self.screen.fill(SKY_BLUE)
+        self.screen.fill(cfg.SKY_BLUE)
         pygame.display.update()
         self.clock = pygame.time.Clock()
         self.running = False
@@ -121,6 +148,8 @@ class ImperialGame:
         self.map.generator.river(self.map.tile, river_map)
 
         # Todo: Biome Generation
+        biome_map = np.zeros([self.map.dim.x, self.map.dim.y], dtype=int)
+        self.map.generator.create_biome_map(self.map.tile, biome_map)
 
         self.map.is_generated = True
 
@@ -160,44 +189,17 @@ class ImperialGame:
                          (25,40))
 
     def use_color_scheme_biomes(self):
-        self.set_color_stages([
-                            [0, (15, 35, 120)],             # Basal Ocean
-                            [20, (18, 46, 184)],            # Shallow Ocean
-                            [31,(12, 240, 217)],
-                            [32,(235, 232, 174)],           # Beach  - - - Generic
-                            [36,(62, 161, 55)],             # Vegetation
-                            [56,(56, 47, 38)],              # Mountains
-                            [72, (220, 220, 220)],          # Rockies
-                            [95, (255,255,255)],            # Snowy
-                            [96, (67, 244, 202)],          # River Variants (Starts at beach and works upward every 50)
-                            [100, (92, 159, 167)],
-                            [120, (55, 70, 86)],
-                            [136, (119, 119, 180)],
-                            [159, (186, 221, 219)],
-                            [224, (235, 232, 174)],  # Beach --- Tundra
-                            [288, (235, 232, 174)],  # Beach --- Tiaga
-                            [352, (235, 232, 174)],  # Beach --- Montane Forest
-                            [416, (235, 232, 174)],  # Beach --- Arid Desert
-                            [480, (235, 232, 174)],  # Beach --- Semiarid Desert
-                            [544, (235, 232, 174)],  # Beach --- Mediterranean
-                            [608, (235, 232, 174)],  # Beach --- Thorn forest
-                            [672, (235, 232, 174)],  # Beach --- Temperate steppe
-                            [736, (235, 232, 174)],  # Beach --- Broadleaf Forest
-                            [800, (235, 232, 174)],  # Beach ---  Savannah
-                            [864, (235, 232, 174)],  # Beach --- Monsoon Forest
-                            [928, (235, 232, 174)],  # Beach --- Tropical Forest
-                            ],
-                         (25,40))
+        self.set_color_stages(cfg.biome_color_stages, (25,40))
 
-    def use_color_scheme_tectonic(self):
-        self.set_color_stages([[0, (33, 23, 4)],
-                              [1, (70, 48, 199)],
-                              [5, (48, 199, 61)],
-                              [6, (46, 33, 6)],
-                              [15,(214, 155, 6)],
-                              [16, (154, 199, 48)],
-                              [20, (181, 13, 13)]],
-                             (6, 15))
+    def use_color_scheme_diagnostic(self):
+        self.set_color_stages([[0, (0, 0, 0)],
+                              [5, (255, 0, 0)],
+                              [10, (242, 219, 12)],
+                              [15, (8, 196, 17)],
+                              [20,(61, 227, 242)],
+                              [25, (29, 18, 181)],
+                              [30, (169, 16, 224)]],
+                             (10, 25))
 
     # stage is an array. Each stage is an index with a color
     def set_color_stages(self, stage, loading_bar_range=None):
@@ -220,9 +222,9 @@ class ImperialGame:
 
     def draw(self):
         self.draw_regions()
-        if not self.map.is_generated: self.screen.fill(SKY_BLUE)
+        if not self.map.is_generated: self.screen.fill(cfg.SKY_BLUE)
 
-        self.draw_mouse_pos()
+        self.draw_mouse_info()
 
     def create_region_cache(self):
         for region_x in range(math.ceil(self.map.dim.x / self.graphics.region_size)):
@@ -233,7 +235,42 @@ class ImperialGame:
                     for row in range(min(self.graphics.region_size, self.map.dim.y - self.graphics.region_size*region_y)):
                         x = self.graphics.region_size*region_x + col
                         y = self.graphics.region_size*region_y + row
-                        color = self.graphics.color[self.map.tile[x][y]]
+
+                        north = self.ry((x, y), -1)
+                        east = self.rx((x, y), 1)
+                        south = self.ry((x, y), 1)
+                        west = self.rx((x, y), -1)
+
+                        here = self.map.tile[x][y]
+                        total = 0
+                        total_red = 0
+                        total_green = 0
+                        total_blue = 0
+                        if is_different_biome(here, north):
+                            total_red += self.graphics.color[north][0]
+                            total_green += self.graphics.color[north][1]
+                            total_blue += self.graphics.color[north][2]
+                            total += 1
+                        if is_different_biome(here, east):
+                            total_red += self.graphics.color[east][0]
+                            total_green += self.graphics.color[east][1]
+                            total_blue += self.graphics.color[east][2]
+                            total += 1
+                        if is_different_biome(here, south):
+                            total_red += self.graphics.color[south][0]
+                            total_green += self.graphics.color[south][1]
+                            total_blue += self.graphics.color[south][2]
+                            total += 1
+                        if is_different_biome(here, west):
+                            total_red += self.graphics.color[west][0]
+                            total_green += self.graphics.color[west][1]
+                            total_blue += self.graphics.color[west][2]
+                            total += 1
+                        total_red += (total + 1) * self.graphics.color[here][0]
+                        total_green += (total + 1) * self.graphics.color[here][1]
+                        total_blue += (total + 1) * self.graphics.color[here][2]
+                        total = 2*total + 1
+                        color = (total_red // total, total_green // total, total_blue // total)
                         pygame.draw.rect(region_map, color,(col, row, 1, 1))
                 region_row.append(region_map)
             self.graphics.region.append(region_row)
@@ -274,13 +311,15 @@ class ImperialGame:
             self.create_region_cache()
             self.graphics.region_prepared = True
 
-    def draw_mouse_pos(self):
+    def draw_mouse_info(self):
         pos_pix = pygame.mouse.get_pos()
         pos_sim = (round(pos_pix[0] / self.sim.scale + self.sim.origin.x, 1), round(pos_pix[1] / self.sim.scale + self.sim.origin.y, 1))
 
         font = pygame.font.SysFont('Arial', 10)
-        text = font.render(str(pos_sim), 1, WHITE)
-        self.screen.blit(text, (self.screen.get_width() - 60, self.screen.get_height() - 20))
+        biome = get_biome(self.r(pos_sim))
+        height = get_height(self.r(pos_sim))
+        text = font.render(f"{pos_sim} {cfg.biome_name[biome]}<{height}>", 1, cfg.WHITE)
+        self.screen.blit(text, (self.screen.get_width() - 150, self.screen.get_height() - 20))
 
     def tick(self):
         i = 1
@@ -315,7 +354,7 @@ class ImperialGame:
         self.get_window_focus()
         self.graphics.loading_bar_fill = clamp(set_completion, 0, 1)
 
-        pygame.draw.rect(self.screen, LIGHT_GRAY, self.graphics.loading_bar_rect)
+        pygame.draw.rect(self.screen, cfg.LIGHT_GRAY, self.graphics.loading_bar_rect)
         area = (0, 0, self.graphics.loading_bar.get_width() * self.graphics.loading_bar_fill, self.graphics.loading_bar.get_height())
         self.screen.blit(self.graphics.loading_bar, self.graphics.loading_bar_rect[0:2], area=area)
         pygame.display.update(self.graphics.loading_bar_rect)

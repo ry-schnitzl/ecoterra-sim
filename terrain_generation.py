@@ -1,20 +1,13 @@
 import bisect
 import math
 import random
+import statistics
 
 import numpy as np
+import cfg
+from cfg import *
 from noise import snoise2, snoise3
 
-n_basal = 0
-n_shallow = 20
-n_tides = 28
-n_beach = 32
-n_vegetation = 36
-n_hills = 40
-n_mountains = 56
-n_rockies = 72
-n_snowy = 96
-n_biome_rep = 64
 
 
 def clamp(value, low=-1, high=1):
@@ -56,24 +49,33 @@ class TerrainGenerator:
         self.completed = 0
         self.total = self.width * self.height
 
+    def ix(self, x):
+        return int(x + self.width) % self.width
+    def iy(self, y):
+        return int(y + self.height) % self.height
     def nx(self, c, incr):
         return (c + incr + self.width) % self.width
-
-
     def ny(self, c, incr):
         return (c + incr + self.height) % self.height
 
+    def r(self, a_map, pt):
+        return a_map[self.ix(pt[0])][self.iy(pt[1])]
+    def rn(self, a_map, pt, incr=(0,0)):
+        return a_map[int(self.nx(pt[0], incr[0]))][int(self.ny(pt[1], incr[1]))]
     def rx(self, a_map, pt, incr):
         return a_map[self.nx(pt[0], incr)][pt[1]]
     def ry(self, a_map, pt, incr):
         return a_map[pt[0]][self.ny(pt[1], incr)]
 
-    def ix(self, a_map, pt, incr, val):
+    def set(self, a_map, pt, val):
+        a_map[self.ix(pt[0])][self.iy(pt[1])] = val
+    def setn(self, a_map, pt, incr, val):
+        a_map[int(self.nx(pt[0], incr[0]))][int(self.ny(pt[1], incr[1]))] = val
+    def setx(self, a_map, pt, incr, val):
         a_map[self.nx(pt[0], incr)][pt[1]] = val
-    def iy(self, a_map, pt, incr, val):
+    def sety(self, a_map, pt, incr, val):
         a_map[pt[0]][self.ny(pt[1], incr)] = val
-    def ipt(self, a_map, pt, incr, val):
-        a_map[self.nx(pt[0], incr[0])][self.ny(pt[1], incr[1])] = val
+
 
 
     def loading_bar_reset(self):
@@ -354,8 +356,8 @@ class TerrainGenerator:
     def apply_tectonic_effects(self, continental_map, tectonic_map, min_height, max_height):
         mnts = self.identify_mnt_ranges(tectonic_map)
         vlys = self.identify_vly_ranges(tectonic_map)
-        self.generate_all_mnt_ranges(continental_map, mnts, 80)
-        self.generate_all_vly_ranges(continental_map, vlys, 0)
+        self.generate_all_mnt_ranges(continental_map, mnts, max_height)
+        self.generate_all_vly_ranges(continental_map, vlys, min_height)
 
     def identify_mnt_ranges(self, tectonic_map):
         def get_closest_alt(target_x, target_y, input_x, input_y):
@@ -674,7 +676,7 @@ class TerrainGenerator:
         river_bezier_spread = 9**2
 
         def height(tile):
-            return (tile - n_beach) % n_biome_rep
+            return (tile - cfg.beach) % cfg.biome_slice
 
 
         def get_closest_alt(target_x, target_y, input_x, input_y):
@@ -688,12 +690,12 @@ class TerrainGenerator:
 
         peaks = []
         for sector_x in range(int(self.width * granularity)):
-            self.loading_bar(sector_x / self.width * granularity)
+            self.loading_bar(sector_x / self.width / granularity)
             for sector_y in range(int(self.height * granularity)):
                 x = int(sector_x / granularity)
                 y = int(sector_y / granularity)
                 river_map = np.zeros([self.width, self.height], dtype=int)
-                if continental_map[x][y] < n_vegetation: continue
+                if continental_map[x][y] < cfg.vegetation: continue
                 p = (x,y)
                 highest = (x, y, continental_map[x][y])
                 q = [(x, y, highest[2])]
@@ -730,7 +732,7 @@ class TerrainGenerator:
                 theta = random.uniform(0, 2 * math.pi)
                 x = self.nx(x, int(r * math.cos(theta)))
                 y = self.ny(y, int(r * math.sin(theta)))
-                if continental_map[x][y] < n_hills: continue
+                if continental_map[x][y] < cfg.hills: continue
 
                 source = (x, y)
                 mouth_canidates = []
@@ -745,15 +747,15 @@ class TerrainGenerator:
                         for dy in [-1, 0, 1]:
                             nx = self.nx(qx, dx)
                             ny = self.ny(qy, dy)
-                            if river_map[nx][ny] == 0 and continental_map[nx][ny] > n_beach + n_biome_rep:
+                            if river_map[nx][ny] == 0 and continental_map[nx][ny] > cfg.beach + cfg.biome_slice:
                                 river_map[nx][ny] = river_map[qx][qy] + 1
                                 nnx, nny = get_closest_alt(x, y, nx, ny)
                                 join_canidates.append((nx, ny, (x - nnx)**2 + (y - nny)**2))
-                            elif river_map[nx][ny] == 0 and n_tides < continental_map[nx][ny] <= qh:
+                            elif river_map[nx][ny] == 0 and cfg.tides < continental_map[nx][ny] <= qh:
                                 bisect.insort(q, (nx, ny, continental_map[nx][ny]), key=lambda p: -p[2])
                                 river_map[nx][ny] = river_map[qx][qy] + 2
                                 if height(continental_map[nx][ny]) == continental_map[qx][qy]: river_map[nx][ny] = river_map[qx][qy] + 1
-                                if continental_map[nx][ny] < n_beach: mouth_canidates.append((nx, ny))
+                                if continental_map[nx][ny] < cfg.beach: mouth_canidates.append((nx, ny))
                 if len(mouth_canidates) < 1: continue
 
                 joined_river = False
@@ -792,7 +794,7 @@ class TerrainGenerator:
                         river_path.pop(-n - 2)
                     else: n += 1
 
-                while len(river_path) > 2 and continental_map[river_path[1][0]][river_path[1][1]] < n_tides:
+                while len(river_path) > 2 and continental_map[river_path[1][0]][river_path[1][1]] < cfg.tides:
                     river_path.pop(0)
 
                 n = 1
@@ -850,17 +852,53 @@ class TerrainGenerator:
 
                         for nx in [self.nx(bx, -1), bx, self.nx(bx, 1)]:
                             for ny in [self.ny(by, -1), by, self.ny(by, 1)]:
-                                if n_beach - 2 <= continental_map[nx][ny] < n_beach + n_biome_rep and continental_map[bx][by] < n_mountains:
-                                    continental_map[nx][ny] = max(continental_map[nx][ny] - random.randint(0, 2), n_beach - 2)
+                                if cfg.beach - 2 <= continental_map[nx][ny] < cfg.beach + cfg.biome_slice and continental_map[bx][by] < cfg.mountains:
+                                    continental_map[nx][ny] = max(continental_map[nx][ny] - random.randint(0, 2), cfg.beach - 2)
 
-                        if continental_map[bx][by] > n_beach: continental_map[bx][by] -= random.randint(1, 2)
-                        if wet_river and n_beach < continental_map[bx][by] < n_beach + n_biome_rep:
-                            continental_map[bx][by] = max(continental_map[bx][by] + n_biome_rep, n_beach + n_biome_rep)
+                        if continental_map[bx][by] > cfg.beach: continental_map[bx][by] -= random.randint(1, 2)
+                        if wet_river and cfg.beach < continental_map[bx][by] < cfg.beach + cfg.biome_slice:
+                            continental_map[bx][by] = max(continental_map[bx][by] + cfg.biome_slice, cfg.beach + cfg.biome_slice)
 
-                        if 80 < continental_map[bx][by] < n_beach + n_biome_rep: print("hey")
+                        # if 80 < continental_map[bx][by] < n_beach + n_biome_rep: print("hey")
 
                         t += 0.05
                     i += 3
+
+
+    # Biome Mapping:
+    #           Warm                            Cool
+    #           0               1               2
+    #   Dry 0_  Desert          Scrubland       Montane
+    #       1_  Mediterranean   Steppe          Tundra
+    #       2_  Savannah        Thornforest     Tiaga
+    #   Wet 3_  Tropics         Rainforest      Deciduous
+    #
+
+    # Probabilities:
+    #           0               1               2
+    #       0_  10%             5%              7.5%
+    #       1_  7.5%            10%             7.5%
+    #       2_  10%             5%              10%
+    #       3_  10%             7.5%            10%
+
+
+    def create_biome_map(self, continental_map, biome_map, biome_scale=0.5):
+
+        biome_seed_offset1 = random.randint(0, 256)
+        biome_seed_offset2 = random.randint(0, 256)
+        self.loading_bar_reset()
+        self.loading_bar_update()
+        for x in range(self.width):
+            self.loading_bar_update()
+            for y in range(self.height):
+                # Wet / Dry
+                wetness = snoise2(x / self.width / biome_scale, y / self.height / biome_scale, 5, 0.2, 2, 1 / biome_scale, 1 / biome_scale, base=(self.seed + biome_seed_offset1) % 256)
+                # Cold / Warm
+                coolness = snoise2(x / self.width / biome_scale, y / self.height / biome_scale, 5, 0.2, 2, 1 / biome_scale, 1 / biome_scale, base=(self.seed + biome_seed_offset2) % 256)
+
+                biome_map[x][y] = (coolness > -0.08) + (coolness > 0.08) + 3 * ( (wetness > -0.14) + (wetness > 0) + (wetness > 0.14) )
+                if cfg.beach <= continental_map[x][y] < cfg.beach + cfg.biome_slice: continental_map[x][y] += (2 + biome_map[x][y]) * cfg.biome_slice
+
 
     def outline(self, a_map, value):
         for x in range(self.width):
